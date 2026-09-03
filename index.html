@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robin Hood Stone — Interactive 3D NFT</title>
+  <meta name="description" content="Black runestone tablet with parrot-color carvings. WebGL 3D NFT in the Bitcoin Runestone silhouette." />
+  <style>
+    :root {
+      --scarlet: #e23d28;
+      --gold: #f5c518;
+      --leaf: #2db35a;
+      --cobalt: #2b6cff;
+      --panel: rgba(8, 8, 8, 0.78);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #050505; color: #f3f0ea; font-family: "Segoe UI", system-ui, sans-serif; }
+    canvas { display: block; }
+    #hud { position: fixed; inset: 0; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto; padding: 22px; }
+    header, footer { pointer-events: auto; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .brand, .stats {
+      background: var(--panel);
+      border: 1px solid rgba(245, 197, 24, 0.22);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+    }
+    .brand { padding: 14px 16px; max-width: 440px; }
+    .brand h1 {
+      font-size: 18px; letter-spacing: .16em; text-transform: uppercase;
+      background: linear-gradient(90deg, #e23d28, #f5c518, #2db35a, #2b6cff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand p { margin-top: 6px; font-size: 13px; opacity: .78; line-height: 1.4; }
+    .stats { padding: 12px 14px; min-width: 180px; font-variant-numeric: tabular-nums; font-size: 13px; }
+    .stats dt { opacity: .5; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .stats dd { margin: 2px 0 10px; color: var(--gold); font-size: 16px; }
+    footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    button, input[type="number"] {
+      background: var(--panel); color: #f3f0ea;
+      border: 1px solid rgba(245, 197, 24, 0.35);
+      border-radius: 999px; padding: 10px 16px; font: inherit; cursor: pointer;
+      backdrop-filter: blur(12px);
+    }
+    button:hover { border-color: var(--scarlet); }
+    button.active { background: var(--gold); color: #111; border-color: var(--gold); }
+    input[type="number"] { width: 110px; }
+    .hint { margin-left: auto; font-size: 12px; opacity: .55; }
+    @media (max-width: 720px) {
+      .hint { display: none; }
+      .brand h1 { font-size: 14px; }
+      header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <header>
+      <div class="brand">
+        <h1>Robin Hood Stone</h1>
+        <p>Black runestone in the Bitcoin Runestone silhouette. Parrot-feather runes carved into basalt. Drag to orbit. Scroll to zoom. Click the stone to wake the marks.</p>
+      </div>
+      <dl class="stats">
+        <dt>Stone</dt>
+        <dd id="tokenLabel">#0001</dd>
+        <dt>Etching</dt>
+        <dd id="etchLabel">—</dd>
+        <dt>Plumage</dt>
+        <dd id="plumageLabel">—</dd>
+      </dl>
+    </header>
+    <div></div>
+    <footer>
+      <button id="btnRandom">Random stone</button>
+      <button id="btnSpin" class="active">Auto-spin</button>
+      <label><input id="tokenInput" type="number" min="1" max="1111" value="1" /></label>
+      <button id="btnLoad">Load stone</button>
+      <span class="hint">1,111 stones · black basalt · macaw etch</span>
+    </footer>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const SUPPLY = 1111;
+    const PARROT = [0xe23d28, 0xf5c518, 0x2db35a, 0x2b6cff];
+    const ETCHINGS = ['Macaw stave', 'Hood chevron', 'Feather bind', 'Beak rune', 'Tail triad'];
+
+    function mulberry32(a) {
+      return function () {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    function tokenSeed(id) { return (id * 2654435761) >>> 0; }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050505);
+    scene.fog = new THREE.FogExp2(0x050505, 0.055);
+
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 80);
+    camera.position.set(2.4, 1.1, 5.6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    document.body.prepend(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.55;
+    controls.minDistance = 3.2;
+    controls.maxDistance = 12;
+    controls.target.set(0, 0.2, 0);
+
+    scene.add(new THREE.HemisphereLight(0x334455, 0x080808, 0.45));
+    const key = new THREE.DirectionalLight(0xfff2d8, 1.35);
+    key.position.set(4, 6, 3);
+    scene.add(key);
+    const rimScarlet = new THREE.DirectionalLight(0xe23d28, 0.85);
+    rimScarlet.position.set(-5, 1.5, -2);
+    scene.add(rimScarlet);
+    const rimBlue = new THREE.PointLight(0x2b6cff, 6, 14);
+    rimBlue.position.set(2.2, 0.4, 2.8);
+    scene.add(rimBlue);
+    const rimGold = new THREE.PointLight(0xf5c518, 4, 10);
+    rimGold.position.set(-1.6, 1.8, 2);
+    scene.add(rimGold);
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(7.5, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0b0b0b, roughness: 0.95, metalness: 0.08 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1.55;
+    scene.add(ground);
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.05, 1.18, 72),
+      new THREE.MeshBasicMaterial({ color: 0xf5c518, transparent: true, opacity: 0.22, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = -1.53;
+    scene.add(ring);
+
+    const particles = new THREE.Points(
+      new THREE.BufferGeometry(),
+      new THREE.PointsMaterial({ size: 0.04, vertexColors: true, transparent: true, opacity: 0.85 })
+    );
+    scene.add(particles);
+
+    function makeParticles(rng) {
+      const n = 280;
+      const pos = new Float32Array(n * 3);
+      const col = new Float32Array(n * 3);
+      const c = new THREE.Color();
+      for (let i = 0; i < n; i++) {
+        const r = 1.6 + rng() * 5.5;
+        const theta = rng() * Math.PI * 2;
+        pos[i * 3] = Math.cos(theta) * r;
+        pos[i * 3 + 1] = (rng() - 0.2) * 4.6;
+        pos[i * 3 + 2] = Math.sin(theta) * r;
+        c.setHex(PARROT[Math.floor(rng() * PARROT.length)]);
+        col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      }
+      particles.geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      particles.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    }
+
+    function stoneGeometry(rng) {
+      const w = 1.38, h = 2.62, d = 0.34;
+      const geo = new THREE.BoxGeometry(w, h, d, 20, 32, 5);
+      const pos = geo.attributes.position;
+      const v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        const ny = (v.y + h / 2) / h;
+        const nx = v.x / (w / 2);
+        const nz = v.z / (d / 2);
+        const taper = 1 - ny * (0.18 + rng() * 0.08);
+        v.x *= taper;
+        if (ny > 0.86) {
+          const peak = Math.abs(nx) * (0.22 + rng() * 0.12);
+          v.y -= peak;
+          if (Math.abs(nx) > 0.55) v.y -= 0.08 * Math.abs(nx);
+        }
+        const edge = Math.max(Math.abs(nx), Math.abs(nz) * 0.6);
+        if (edge > 0.82) {
+          const chip = (edge - 0.82) * (0.12 + rng() * 0.18);
+          v.x *= 1 - chip * 0.35;
+          if (Math.abs(nz) > 0.7) v.z *= 1 - chip * 0.5;
+        }
+        const grit = Math.sin(v.x * 9 + rng() * 12) * Math.cos(v.y * 7) * 0.012 + (rng() - 0.5) * 0.018;
+        const nrm = v.clone();
+        if (nrm.lengthSq() > 0.0001) nrm.normalize();
+        v.addScaledVector(nrm, grit);
+        v.z += Math.sin(ny * Math.PI) * (rng() - 0.5) * 0.04;
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function bar(w, h, d, color, x, y, z, rotZ) {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({
+          color: color,
+          emissive: color,
+          emissiveIntensity: 0.55,
+          roughness: 0.35,
+          metalness: 0.25
+        })
+      );
+      mesh.position.set(x, y, z);
+      mesh.rotation.z = rotZ || 0;
+      return mesh;
+    }
+
+    function macawGlyph(rng, zFace) {
+      const g = new THREE.Group();
+      const a = PARROT[Math.floor(rng() * 4)];
+      const b = PARROT[Math.floor(rng() * 4)];
+      const c = PARROT[Math.floor(rng() * 4)];
+      const t = 0.055 + rng() * 0.02;
+      const z = zFace;
+      g.add(bar(t, 1.35, t, a, 0, 0.05, z, 0));
+      g.add(bar(0.72, t, t, b, 0, 0.38, z, 0));
+      g.add(bar(0.42, t, t, a, 0.28, 0.72, z, -0.7));
+      g.add(bar(0.28, t, t, c, 0.48, 0.52, z, 0.55));
+      g.add(bar(0.55, t, t, a, -0.12, -0.62, z, 0.55));
+      g.add(bar(0.5, t, t, b, 0.02, -0.72, z, 0.15));
+      g.add(bar(0.48, t, t, c, 0.18, -0.62, z, -0.45));
+      const eye = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xf5c518, emissive: 0xf5c518, emissiveIntensity: 0.8 })
+      );
+      eye.position.set(-0.16, 0.78, z + 0.01);
+      g.add(eye);
+      return g;
+    }
+
+    let stone, glyphs, pulse = 0, currentToken = 1;
+
+    function growStone(tokenId) {
+      const seed = tokenSeed(tokenId);
+      const rng = mulberry32(seed);
+      while (group.children.length) group.remove(group.children[0]);
+
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: 0x111111,
+        roughness: 0.62 + rng() * 0.18,
+        metalness: 0.22,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.4,
+        sheen: 0.4,
+        sheenColor: new THREE.Color(PARROT[Math.floor(rng() * 4)]),
+        sheenRoughness: 0.6
+      });
+
+      stone = new THREE.Mesh(stoneGeometry(rng), mat);
+      group.add(stone);
+
+      glyphs = macawGlyph(rng, 0.19);
+      group.add(glyphs);
+      const back = macawGlyph(rng, -0.19);
+      back.rotation.y = Math.PI;
+      group.add(back);
+
+      makeParticles(rng);
+
+      const etch = ETCHINGS[Math.floor(rng() * ETCHINGS.length)];
+      const plumage = ['Scarlet', 'Gold', 'Leaf', 'Cobalt'][Math.floor(rng() * 4)] + ' bind';
+      document.getElementById('tokenLabel').textContent = '#' + String(tokenId).padStart(4, '0');
+      document.getElementById('etchLabel').textContent = etch;
+      document.getElementById('plumageLabel').textContent = plumage;
+      document.getElementById('tokenInput').value = tokenId;
+      currentToken = tokenId;
+    }
+
+    growStone(1);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      pointer.x = (e.clientX / innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      if (stone && raycaster.intersectObject(stone, true).length) pulse = 1;
+    });
+
+    document.getElementById('btnRandom').onclick = function () {
+      growStone(1 + Math.floor(Math.random() * SUPPLY));
+    };
+    document.getElementById('btnLoad').onclick = function () {
+      const id = Math.max(1, Math.min(SUPPLY, Number(document.getElementById('tokenInput').value) || 1));
+      growStone(id);
+    };
+    document.getElementById('btnSpin').onclick = function (e) {
+      controls.autoRotate = !controls.autoRotate;
+      e.target.classList.toggle('active', controls.autoRotate);
+    };
+
+    window.addEventListener('resize', function () {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function tick() {
+      const t = clock.getElapsedTime();
+      requestAnimationFrame(tick);
+      if (pulse > 0) {
+        group.scale.setScalar(1 + Math.sin(pulse * Math.PI) * 0.06);
+        if (glyphs) {
+          glyphs.traverse(function (ch) {
+            if (ch.material && ch.material.emissiveIntensity != null) {
+              ch.material.emissiveIntensity = 0.55 + pulse * 1.4;
+            }
+          });
+        }
+        pulse = Math.max(0, pulse - 0.04);
+      } else {
+        group.scale.setScalar(1);
+      }
+      particles.rotation.y = t * 0.03;
+      ring.rotation.z = t * 0.12;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    tick();
+  </script>
+</body>
+</html>
