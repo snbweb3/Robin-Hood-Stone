@@ -3,40 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Robin Hood Stone — Shape Studio</title>
+  <title>Robin Hood Stone — Runestone</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #02030a; color: #eef2ee; font-family: "Segoe UI", system-ui, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #c9d4de; font-family: "Segoe UI", system-ui, sans-serif; }
     canvas { display: block; }
-    #hud { position: fixed; inset: 0; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto; padding: 18px; gap: 12px; }
-    header, footer, .shapes { pointer-events: auto; }
-    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-    .brand, .note {
-      background: rgba(4, 8, 6, 0.58);
-      border: 1px solid rgba(170, 210, 170, 0.22);
-      backdrop-filter: blur(12px);
-      border-radius: 16px;
+    #hud { position: fixed; inset: 0; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto; padding: 18px; }
+    header, footer { pointer-events: auto; }
+    .brand {
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(80,140,200,.25);
+      padding: 12px 14px; border-radius: 14px; max-width: 360px;
     }
-    .brand { padding: 14px 16px; max-width: 380px; }
-    .brand h1 { font-size: 17px; letter-spacing: .16em; text-transform: uppercase; color: #c8e6c0; }
-    .brand p { margin-top: 6px; font-size: 13px; opacity: .72; line-height: 1.4; }
-    .note { padding: 12px 14px; max-width: 240px; font-size: 13px; }
-    .note b { color: #c8e6c0; display: block; margin-bottom: 4px; }
-    .shapes { display: flex; flex-wrap: wrap; gap: 8px; }
-    footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    button, input[type="number"] {
-      background: rgba(4, 8, 6, 0.58); color: #eef2ee;
-      border: 1px solid rgba(170, 210, 170, 0.28);
-      border-radius: 999px; padding: 9px 14px; font: inherit; cursor: pointer;
-      backdrop-filter: blur(12px);
+    .brand h1 { font-size: 15px; letter-spacing: .18em; text-transform: uppercase; color: #6eb6ff; }
+    .brand p { margin-top: 5px; font-size: 12px; opacity: .65; }
+    footer { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      background: rgba(0,0,0,.5); color: #d5e6f5;
+      border: 1px solid rgba(80,140,200,.3);
+      border-radius: 999px; padding: 8px 13px; font: inherit; cursor: pointer;
     }
-    button:hover { border-color: #9fca90; }
-    button.active { background: #9fca90; color: #102010; border-color: #9fca90; }
-    input[type="number"] { width: 96px; }
-    @media (max-width: 720px) {
-      .note { display: none; }
-      .brand h1 { font-size: 14px; }
-    }
+    button.active { background: #1a4a7a; border-color: #6eb6ff; color: #fff; }
   </style>
 </head>
 <body>
@@ -44,26 +31,17 @@
     <header>
       <div class="brand">
         <h1>Robin Hood</h1>
-        <p>Five silhouettes. Same light-green stone. Pick a shape, then orbit it.</p>
-      </div>
-      <div class="note">
-        <b id="shapeName">Classic Runestone</b>
-        <span id="shapeBlurb">Tall tablet. Broken crown. One high shoulder.</span>
+        <p>Matte black runestone. Blue etch. Drag to orbit.</p>
       </div>
     </header>
     <div></div>
     <footer>
-      <div class="shapes">
-        <button class="shapeBtn active" data-shape="classic">1 Classic</button>
-        <button class="shapeBtn" data-shape="split">2 Split crown</button>
-        <button class="shapeBtn" data-shape="shield">3 Shield</button>
-        <button class="shapeBtn" data-shape="menhir">4 Menhir</button>
-        <button class="shapeBtn" data-shape="layered">5 Layered jade</button>
-      </div>
-      <button id="btnRandom">Random</button>
-      <button id="btnSpin" class="active">Auto-spin</button>
-      <label><input id="tokenInput" type="number" min="1" max="1111" value="1" /></label>
-      <button id="btnLoad">Load</button>
+      <button class="shapeBtn active" data-shape="classic">Classic</button>
+      <button class="shapeBtn" data-shape="split">Split</button>
+      <button class="shapeBtn" data-shape="shield">Shield</button>
+      <button class="shapeBtn" data-shape="menhir">Menhir</button>
+      <button class="shapeBtn" data-shape="layered">Layered</button>
+      <button id="btnSpin" class="active">Spin</button>
     </footer>
   </div>
 
@@ -79,186 +57,139 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    const SUPPLY = 1111;
-    const META = {
-      classic: { name: 'Classic Runestone', blurb: 'Tall tablet. Broken crown. One high shoulder. BTC Runestone family.' },
-      split: { name: 'Split crown', blurb: 'Same tablet, top cracked into two horns. Seed picks the taller horn.' },
-      shield: { name: 'Shield stone', blurb: 'Shorter, wider badge. Arched top, blunt curve at the base.' },
-      menhir: { name: 'River-worn menhir', blurb: 'Bulged sides, no sharp corners. Pitted like a found boulder.' },
-      layered: { name: 'Layered jade', blurb: 'Three offset plates. Sedimentary stack in the same outline.' }
-    };
-
-    function mulberry32(a) {
-      return function () {
-        let t = a += 0x6D2B79F5;
-        t = Math.imul(t ^ t >>> 15, t | 1);
-        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
-      };
-    }
-    function tokenSeed(id) { return (id * 2654435761) >>> 0; }
-
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x02030a);
-    scene.fog = new THREE.FogExp2(0x02030a, 0.018);
+    scene.background = new THREE.Color(0x000000);
 
-    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
-    camera.position.set(2.6, 1.15, 5.8);
+    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 0.2, 3.2);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(innerWidth, innerHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.prepend(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
-    controls.minDistance = 3.2;
-    controls.maxDistance = 16;
-    controls.target.set(0, 0.15, 0);
+    controls.autoRotateSpeed = 0.8;
+    controls.enablePan = false;
+    controls.minDistance = 1.8;
+    controls.maxDistance = 8;
+    controls.target.set(0, 0.05, 0);
 
-    scene.add(new THREE.AmbientLight(0xb8cfc0, 0.28));
-    scene.add(new THREE.HemisphereLight(0xd7e8ff, 0x1a2a18, 0.55));
-    const key = new THREE.DirectionalLight(0xfff4e0, 2.1);
-    key.position.set(4.2, 7.2, 3.4);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    key.shadow.camera.near = 1; key.shadow.camera.far = 24;
-    key.shadow.camera.left = -6; key.shadow.camera.right = 6;
-    key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
-    scene.add(key);
-    const fill = new THREE.DirectionalLight(0xc8ffd4, 0.55);
-    fill.position.set(-5, 2.2, -2);
-    scene.add(fill);
-    const rim = new THREE.SpotLight(0xffffff, 18, 18, 0.35, 0.55, 1.1);
-    rim.position.set(-2.4, 5.5, 4.2);
-    rim.target.position.set(0, 0.2, 0);
-    scene.add(rim); scene.add(rim.target);
-    const bounce = new THREE.PointLight(0x9fca90, 4.5, 12);
-    bounce.position.set(0, -0.6, 2.4);
-    scene.add(bounce);
+    const uniforms = { u_time: { value: 0 } };
 
-    const group = new THREE.Group();
-    scene.add(group);
-
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(9, 72),
-      new THREE.MeshStandardMaterial({ color: 0x0a0e12, roughness: 0.96, metalness: 0.04 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -1.55;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    function makeGalaxy() {
-      const n = 1800;
-      const pos = new Float32Array(n * 3);
-      const col = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) {
-        const band = Math.random() < 0.38;
-        let x, y, z;
-        if (band) {
-          const a = Math.random() * Math.PI * 2;
-          const r = 8 + Math.random() * 28;
-          x = Math.cos(a) * r;
-          y = (Math.random() - 0.5) * 3.2 + Math.sin(a * 2) * 1.4;
-          z = Math.sin(a) * r * 0.35 + (Math.random() - 0.5) * 10;
-        } else {
-          const r = 10 + Math.random() * 40;
-          const theta = Math.random() * Math.PI * 2;
-          const phi = Math.acos(2 * Math.random() - 1);
-          x = r * Math.sin(phi) * Math.cos(theta);
-          y = r * Math.cos(phi);
-          z = r * Math.sin(phi) * Math.sin(theta);
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec3 vPos;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vPos = position;
+          vNormal = normalize(normalMatrix * normal);
+          vView = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * viewMatrix * wp;
         }
-        pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
-        const w = 0.82 + Math.random() * 0.18;
-        col[i * 3] = w; col[i * 3 + 1] = w; col[i * 3 + 2] = w;
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      const stars = new THREE.Points(g, new THREE.PointsMaterial({
-        size: 0.045, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false
-      }));
-      scene.add(stars);
-      return stars;
-    }
-    const galaxy = makeGalaxy();
+      `,
+      fragmentShader: `
+        precision mediump float;
+        varying vec3 vPos;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        uniform float u_time;
 
-    function applyGrit(geo, rng, amount) {
+        float hash(vec3 p){
+          return fract(sin(dot(p, vec3(12.9898, 78.233, 37.147))) * 43758.5453);
+        }
+        float noise(vec3 p){
+          vec3 i = floor(p);
+          vec3 f = fract(p);
+          f = f*f*(3.0-2.0*f);
+          float n000 = hash(i);
+          float n100 = hash(i + vec3(1,0,0));
+          float n010 = hash(i + vec3(0,1,0));
+          float n110 = hash(i + vec3(1,1,0));
+          float n001 = hash(i + vec3(0,0,1));
+          float n101 = hash(i + vec3(1,0,1));
+          float n011 = hash(i + vec3(0,1,1));
+          float n111 = hash(i + vec3(1,1,1));
+          float nx00 = mix(n000, n100, f.x);
+          float nx10 = mix(n010, n110, f.x);
+          float nx01 = mix(n001, n101, f.x);
+          float nx11 = mix(n011, n111, f.x);
+          return mix(mix(nx00, nx10, f.y), mix(nx01, nx11, f.y), f.z);
+        }
+
+        void main() {
+          vec3 col = vec3(0.02, 0.02, 0.02);
+          float n = noise(vPos * 4.0 + vec3(0.0, u_time * 0.1, 0.0));
+          float rune = smoothstep(0.45, 0.55, n);
+          rune *= step(0.3, fract(vPos.x * 3.0 + vPos.z * 2.0));
+          rune *= step(0.18, abs(vPos.x) + abs(vPos.y * 0.15));
+          float pulse = 0.5 + 0.5 * sin(u_time * 2.0);
+          vec3 runeColor = vec3(0.2, 0.6, 1.0) * rune * pulse;
+          float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 2.2);
+          col += runeColor;
+          col += rim * vec3(0.12, 0.18, 0.28);
+          col += vec3(0.03) * max(dot(normalize(vNormal), normalize(vec3(0.4, 0.8, 0.5))), 0.0);
+          float dust = step(0.992, noise(vPos * 7.0 + u_time));
+          col += vec3(dust * 0.8);
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `
+    });
+
+    function grit(geo, amt) {
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
       for (let i = 0; i < pos.count; i++) {
         v.fromBufferAttribute(pos, i);
-        const grit = Math.sin(v.x * 8.5 + rng() * 10) * Math.cos(v.y * 6.5) * amount + (rng() - 0.5) * amount * 1.2;
         const n = v.clone();
-        if (n.lengthSq() > 0.0001) n.normalize();
-        v.addScaledVector(n, grit);
+        if (n.lengthSq() > 0) n.normalize();
+        v.addScaledVector(n, (Math.random() - 0.5) * amt);
         pos.setXYZ(i, v.x, v.y, v.z);
       }
       geo.computeVertexNormals();
       return geo;
     }
 
-    function classicGeo(rng) {
-      const w = 1.4, h = 2.7, d = 0.32;
-      const geo = new THREE.BoxGeometry(w, h, d, 24, 40, 6);
+    function classicGeo() {
+      const w = 1.15, h = 1.7, d = 0.38;
+      const geo = new THREE.BoxGeometry(w, h, d, 18, 28, 6);
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
-      const leftHigh = rng() > 0.5 ? 1 : -1;
       for (let i = 0; i < pos.count; i++) {
         v.fromBufferAttribute(pos, i);
         const ny = (v.y + h / 2) / h;
         const nx = v.x / (w / 2);
-        const nz = v.z / (d / 2);
-        v.x *= 1 - ny * 0.18;
-        if (ny > 0.84) {
-          v.y -= 0.22 * Math.abs(nx) + (nx * leftHigh > 0 ? 0.12 : 0);
-          v.y -= ny * 0.04;
-        }
-        if (nx > 0.72 && ny > 0.25 && ny < 0.62) v.x -= 0.07 * (nx - 0.72);
-        const edge = Math.max(Math.abs(nx), Math.abs(nz) * 0.5);
-        if (edge > 0.82) {
-          const chip = (edge - 0.82) * 0.18;
-          v.x *= 1 - chip * 0.28;
-        }
-        v.z *= 0.92 + 0.08 * Math.cos(ny * Math.PI);
+        v.x *= 1 - ny * 0.2;
+        if (ny > 0.82) v.y -= Math.abs(nx) * 0.28 + (nx > 0 ? 0.08 : 0);
+        if (nx > 0.7 && ny > 0.25 && ny < 0.6) v.x -= 0.08;
+        v.x += (ny - 0.5) * 0.06;
         pos.setXYZ(i, v.x, v.y, v.z);
       }
-      return applyGrit(geo, rng, 0.012);
+      return grit(geo, 0.03);
     }
-
-    function splitGeo(rng) {
-      const w = 1.38, h = 2.62, d = 0.32;
-      const geo = new THREE.BoxGeometry(w, h, d, 24, 40, 6);
+    function splitGeo() {
+      const w = 1.12, h = 1.65, d = 0.36;
+      const geo = new THREE.BoxGeometry(w, h, d, 18, 28, 6);
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
-      const tallLeft = rng() > 0.5;
       for (let i = 0; i < pos.count; i++) {
         v.fromBufferAttribute(pos, i);
         const ny = (v.y + h / 2) / h;
         const nx = v.x / (w / 2);
         v.x *= 1 - ny * 0.16;
-        if (ny > 0.78) {
-          const valley = (1 - Math.abs(nx)) * 0.38;
-          v.y -= valley;
-          if (tallLeft && nx < 0) v.y += 0.14;
-          if (!tallLeft && nx > 0) v.y += 0.14;
-        }
+        if (ny > 0.76) v.y -= (1 - Math.abs(nx)) * 0.36;
         pos.setXYZ(i, v.x, v.y, v.z);
       }
-      return applyGrit(geo, rng, 0.012);
+      return grit(geo, 0.03);
     }
-
-    function shieldGeo(rng) {
-      const w = 1.72, h = 2.05, d = 0.34;
-      const geo = new THREE.BoxGeometry(w, h, d, 28, 32, 6);
+    function shieldGeo() {
+      const w = 1.4, h = 1.35, d = 0.36;
+      const geo = new THREE.BoxGeometry(w, h, d, 20, 22, 6);
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
       for (let i = 0; i < pos.count; i++) {
@@ -266,124 +197,64 @@
         const ny = (v.y + h / 2) / h;
         const nx = v.x / (w / 2);
         const arch = Math.sqrt(Math.max(0, 1 - nx * nx));
-        if (ny > 0.72) v.y = -h / 2 + h * (0.72 + 0.28 * arch) - (h / 2 - v.y) * 0.15;
-        if (ny < 0.22) {
-          const curve = 1 - Math.pow(1 - ny / 0.22, 1.4);
-          v.x *= 0.78 + 0.22 * curve;
-        }
-        if (Math.abs(nx) > 0.9 && ny > 0.55) v.y -= 0.06;
+        if (ny > 0.7) v.y = -h / 2 + h * (0.7 + 0.3 * arch) * 0.92;
+        if (ny < 0.22) v.x *= 0.8 + ny * 0.9;
         pos.setXYZ(i, v.x, v.y, v.z);
       }
-      return applyGrit(geo, rng, 0.01);
+      return grit(geo, 0.025);
     }
-
-    function menhirGeo(rng) {
-      const w = 1.28, h = 2.55, d = 0.55;
-      const geo = new THREE.BoxGeometry(w, h, d, 22, 36, 10);
+    function menhirGeo() {
+      const w = 1.0, h = 1.7, d = 0.55;
+      const geo = new THREE.BoxGeometry(w, h, d, 16, 26, 10);
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
       for (let i = 0; i < pos.count; i++) {
         v.fromBufferAttribute(pos, i);
         const ny = (v.y + h / 2) / h;
-        const bulge = 0.78 + Math.sin(ny * Math.PI) * 0.32;
+        const bulge = 0.75 + Math.sin(ny * Math.PI) * 0.35;
         v.x *= bulge;
         v.z *= 0.7 + Math.sin(ny * Math.PI) * 0.35;
-        if (ny > 0.88) {
-          v.x *= 0.7;
-          v.y -= Math.abs(v.x) * 0.15;
-        }
-        v.x += Math.sin(ny * 6) * 0.03;
+        if (ny > 0.88) { v.x *= 0.65; v.y -= Math.abs(v.x) * 0.2; }
         pos.setXYZ(i, v.x, v.y, v.z);
       }
-      return applyGrit(geo, rng, 0.02);
+      return grit(geo, 0.04);
     }
 
-    function layeredMeshes(rng, mat) {
-      const parts = new THREE.Group();
-      const offsets = [-0.11, 0, 0.11];
-      const scales = [0.96, 1, 0.9];
-      offsets.forEach((oz, i) => {
-        const geo = classicGeo(rng);
-        const m = mat.clone();
-        m.color = mat.color.clone().offsetHSL(0, 0, (i - 1) * 0.05);
-        const mesh = new THREE.Mesh(geo, m);
-        mesh.position.set((i - 1) * 0.04, i * 0.02, oz);
-        mesh.scale.set(scales[i], 1 - i * 0.015, 0.42);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        parts.add(mesh);
-      });
-      return parts;
-    }
+    const group = new THREE.Group();
+    scene.add(group);
 
-    function stoneMat(rng) {
-      const tint = new THREE.Color().setHSL(0.33 + (rng() - 0.5) * 0.04, 0.28, 0.48 + rng() * 0.07);
-      return new THREE.MeshPhysicalMaterial({
-        color: tint,
-        roughness: 0.42 + rng() * 0.16,
-        metalness: 0.08,
-        clearcoat: 0.55,
-        clearcoatRoughness: 0.28,
-        sheen: 0.25,
-        sheenColor: new THREE.Color(0xd7f0c8),
-        sheenRoughness: 0.7,
-        transparent: false,
-        opacity: 1
-      });
-    }
-
-    let stoneGroup, pulse = 0, currentShape = 'classic', currentToken = 1;
-
-    function grow(tokenId, shape) {
-      currentToken = tokenId;
-      currentShape = shape;
-      const rng = mulberry32(tokenSeed(tokenId) ^ (shape.charCodeAt(0) * 997));
-      while (group.children.length) group.remove(group.children[0]);
-      const mat = stoneMat(rng);
-      if (shape === 'layered') {
-        stoneGroup = layeredMeshes(rng, mat);
+    function setShape(name) {
+      while (group.children.length) {
+        const ch = group.children[0];
+        group.remove(ch);
+        if (ch.geometry) ch.geometry.dispose();
+      }
+      if (name === 'layered') {
+        [0,1,2].forEach((i) => {
+          const mesh = new THREE.Mesh(classicGeo(), mat);
+          mesh.position.set((i - 1) * 0.03, i * 0.015, (i - 1) * 0.1);
+          mesh.scale.set(1 - i * 0.04, 1 - i * 0.02, 0.45);
+          group.add(mesh);
+        });
       } else {
         const makers = { classic: classicGeo, split: splitGeo, shield: shieldGeo, menhir: menhirGeo };
-        const mesh = new THREE.Mesh(makers[shape](rng), mat);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        stoneGroup = mesh;
+        group.add(new THREE.Mesh(makers[name](), mat));
       }
-      group.add(stoneGroup);
-      document.getElementById('tokenInput').value = tokenId;
-      document.getElementById('shapeName').textContent = META[shape].name;
-      document.getElementById('shapeBlurb').textContent = META[shape].blurb;
     }
-
-    grow(1, 'classic');
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    renderer.domElement.addEventListener('pointerdown', (e) => {
-      pointer.x = (e.clientX / innerWidth) * 2 - 1;
-      pointer.y = -(e.clientY / innerHeight) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      if (raycaster.intersectObject(group, true).length) pulse = 1;
-    });
+    setShape('classic');
 
     document.querySelectorAll('.shapeBtn').forEach((btn) => {
       btn.onclick = function () {
         document.querySelectorAll('.shapeBtn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        grow(currentToken, btn.dataset.shape);
+        setShape(btn.dataset.shape);
       };
     });
-    document.getElementById('btnRandom').onclick = function () {
-      grow(1 + Math.floor(Math.random() * SUPPLY), currentShape);
-    };
-    document.getElementById('btnLoad').onclick = function () {
-      grow(Math.max(1, Math.min(SUPPLY, Number(document.getElementById('tokenInput').value) || 1)), currentShape);
-    };
     document.getElementById('btnSpin').onclick = function (e) {
       controls.autoRotate = !controls.autoRotate;
       e.target.classList.toggle('active', controls.autoRotate);
     };
-    window.addEventListener('resize', function () {
+    window.addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
@@ -391,18 +262,8 @@
 
     const clock = new THREE.Clock();
     function tick() {
-      const t = clock.getElapsedTime();
       requestAnimationFrame(tick);
-      if (pulse > 0) {
-        group.scale.setScalar(1 + Math.sin(pulse * Math.PI) * 0.04);
-        key.intensity = 2.1 + pulse * 1.4;
-        pulse = Math.max(0, pulse - 0.04);
-      } else {
-        group.scale.setScalar(1);
-        key.intensity = 2.1 + Math.sin(t * 0.7) * 0.12;
-      }
-      galaxy.rotation.y = t * 0.008;
-      rim.intensity = 16 + Math.sin(t * 0.9) * 2.5;
+      uniforms.u_time.value = clock.getElapsedTime();
       controls.update();
       renderer.render(scene, camera);
     }
