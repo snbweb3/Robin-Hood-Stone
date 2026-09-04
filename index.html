@@ -8,238 +8,305 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     canvas { display: block; }
+    #err {
+      display: none; position: fixed; inset: 16px auto auto 16px;
+      max-width: 420px; color: #9ad; font: 13px/1.4 ui-monospace, monospace;
+      background: rgba(0,0,0,.72); padding: 12px 14px; border: 1px solid #1a3a5a;
+      z-index: 9;
+    }
   </style>
 </head>
 <body>
+  <div id="err"></div>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
     }
   }
   </script>
   <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import a from './face-0.js';
-    import b from './face-1.js';
-    import c from './face-2.js';
+    const errBox = document.getElementById("err");
+    const showErr = (m) => { errBox.style.display = "block"; errBox.textContent = m; console.error(m); };
+    window.addEventListener("error", (e) => showErr(String(e.message || e)));
+    window.addEventListener("unhandledrejection", (e) => showErr(String(e.reason || e)));
 
-    const FACE = 'data:image/jpeg;base64,' + a + b + c;
+    try {
+      const THREE = await import("three");
+      const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    scene.fog = new THREE.FogExp2(0x000000, 0.048);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+      scene.fog = new THREE.FogExp2(0x000000, 0.048);
 
-    const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, 0.1, 80);
-    camera.position.set(0.04, 0.16, 5.55);
+      const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, 0.1, 80);
+      camera.position.set(0.04, 0.16, 5.55);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.92;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.28;
-    controls.enablePan = false;
-    controls.minDistance = 3.3;
-    controls.maxDistance = 9.2;
-    controls.minPolarAngle = 0.82;
-    controls.maxPolarAngle = 1.48;
-    controls.target.set(0, 0.02, 0);
-
-    scene.add(new THREE.AmbientLight(0x07080c, 0.22));
-
-    const key = new THREE.SpotLight(0xe8edf4, 16.5, 22, 0.34, 0.8, 1.1);
-    key.position.set(-1.4, 5.5, 4.1);
-    key.target.position.set(0, 0.08, 0);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    scene.add(key);
-    scene.add(key.target);
-
-    const fill = new THREE.DirectionalLight(0x101218, 0.16);
-    fill.position.set(2.6, 0.3, -1.6);
-    scene.add(fill);
-
-    const runeGlow = new THREE.PointLight(0x2a7dff, 1.05, 5.8);
-    runeGlow.position.set(-0.04, 0.18, 1.12);
-    scene.add(runeGlow);
-
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(6.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x010102, roughness: 1, metalness: 0 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -1.42;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    const dustGeo = new THREE.BufferGeometry();
-    const nDust = 160;
-    const dustPos = new Float32Array(nDust * 3);
-    for (let i = 0; i < nDust; i++) {
-      dustPos[i * 3]     = (Math.random() - 0.5) * 7.2;
-      dustPos[i * 3 + 1] = Math.random() * 4.1 - 0.8;
-      dustPos[i * 3 + 2] = (Math.random() - 0.5) * 5.4;
-    }
-    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-      color: 0xb8c8dc, size: 0.009, transparent: true, opacity: 0.16, depthWrite: false
-    }));
-    scene.add(dust);
-
-    const outline = [
-      [-0.28, 0.97], [-0.20, 1.07], [-0.08, 1.12], [0.04, 1.07],
-      [0.16, 0.98], [0.24, 0.86], [0.27, 0.72], [0.22, 0.58],
-      [0.14, 0.50], [0.30, 0.46], [0.42, 0.34], [0.38, 0.18],
-      [0.41, 0.00], [0.43, -0.22], [0.45, -0.48], [0.44, -0.74],
-      [0.38, -0.98], [0.26, -1.13], [0.06, -1.19], [-0.16, -1.18],
-      [-0.34, -1.12], [-0.44, -0.98], [-0.47, -0.76], [-0.47, -0.50],
-      [-0.46, -0.22], [-0.45, 0.06], [-0.44, 0.34], [-0.42, 0.58],
-      [-0.40, 0.76], [-0.36, 0.88]
-    ];
-
-    const shape = new THREE.Shape();
-    outline.forEach(([x, y], i) => (i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y)));
-    shape.closePath();
-
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.32,
-      bevelEnabled: true,
-      bevelThickness: 0.048,
-      bevelSize: 0.034,
-      bevelSegments: 5,
-      curveSegments: 14
-    });
-    geo.center();
-    geo.computeVertexNormals();
-
-    const loader = new THREE.TextureLoader();
-    const faceMap = loader.load(FACE);
-    faceMap.colorSpace = THREE.SRGBColorSpace;
-    faceMap.minFilter = THREE.LINEAR_MIPMAP_LINEAR;
-    faceMap.magFilter = THREE.LINEAR;
-    faceMap.anisotropy = 4;
-
-    const mat = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uMap:  { value: faceMap }
-      },
-      vertexShader: `
-        varying vec3 vN;
-        varying vec3 vP;
-        varying vec3 vV;
-        void main(){
-          vec4 w = modelMatrix * vec4(position, 1.0);
-          vP = position;
-          vN = normalize(normalMatrix * normal);
-          vV = normalize(cameraPosition - w.xyz);
-          gl_Position = projectionMatrix * viewMatrix * w;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform sampler2D uMap;
-        varying vec3 vN;
-        varying vec3 vP;
-        varying vec3 vV;
-
-        float hash(vec2 p){
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        }
-        float noise(vec2 p){
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-        }
-        float fbm(vec2 p){
-          float v = 0.0;
-          float a = 0.5;
-          for (int i = 0; i < 5; i++) {
-            v += a * noise(p);
-            p = p * 2.07 + vec2(1.7, 9.2);
-            a *= 0.5;
-          }
-          return v;
-        }
-
-        void main(){
-          vec3 n = normalize(vN);
-          vec3 view = normalize(vV);
-          float front = smoothstep(0.18, 0.62, n.z);
-
-          vec2 uv = vec2(
-            (vP.x + 0.50) / 1.00,
-            (vP.y + 1.22) / 2.42
-          );
-          uv = clamp(uv, 0.0, 1.0);
-
-          vec3 photo = texture2D(uMap, uv).rgb;
-
-          float grit = fbm(uv * 26.0 + vP.z * 8.0);
-          float pits = smoothstep(0.64, 0.93, noise(uv * 58.0 + vP.z * 12.0));
-          vec3 side = vec3(0.018 + grit * 0.022 - pits * 0.012);
-
-          vec3 L = normalize(vec3(-0.38, 0.84, 0.52));
-          float ndl = max(dot(n, L), 0.0);
-          side *= 0.28 + pow(ndl, 1.25) * 0.9;
-          float spec = pow(max(dot(reflect(-L, n), view), 0.0), 26.0) * (1.0 - grit) * 0.035;
-          side += spec * vec3(0.55, 0.58, 0.62);
-          float rim = pow(1.0 - max(dot(n, view), 0.0), 3.2);
-          side += rim * vec3(0.028, 0.032, 0.038);
-
-          float rune = smoothstep(0.12, 0.42, photo.b - max(photo.r, photo.g) * 0.85);
-          float pulse = 0.88 + 0.12 * sin(uTime * 1.75);
-          vec3 photoLit = photo * (0.92 + ndl * 0.18);
-          photoLit += vec3(0.10, 0.38, 0.95) * rune * 0.22 * pulse;
-          photoLit += vec3(0.45, 0.78, 1.0) * rune * rune * 0.12 * pulse;
-
-          vec3 col = mix(side, photoLit, front);
-          col = max(col, vec3(0.004));
-          gl_FragColor = vec4(col, 1.0);
-        }
-      `
-    });
-
-    const stone = new THREE.Mesh(geo, mat);
-    stone.castShadow = true;
-    stone.receiveShadow = true;
-    stone.position.y = 0.08;
-    scene.add(stone);
-
-    window.addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
       renderer.setSize(innerWidth, innerHeight);
-    });
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.88;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
 
-    const clock = new THREE.Clock();
-    function tick() {
-      requestAnimationFrame(tick);
-      const t = clock.getElapsedTime();
-      mat.uniforms.uTime.value = t;
-      dust.rotation.y = t * 0.012;
-      key.intensity = 16.0 + Math.sin(t * 1.25) * 0.7;
-      runeGlow.intensity = 0.92 + Math.sin(t * 1.75) * 0.2;
-      controls.update();
-      renderer.render(scene, camera);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.28;
+      controls.enablePan = false;
+      controls.minDistance = 3.3;
+      controls.maxDistance = 9.2;
+      controls.minPolarAngle = 0.82;
+      controls.maxPolarAngle = 1.48;
+      controls.target.set(0, 0.02, 0);
+
+      scene.add(new THREE.AmbientLight(0x07080c, 0.22));
+
+      const key = new THREE.SpotLight(0xe8edf4, 16.5, 22, 0.34, 0.8, 1.1);
+      key.position.set(-1.4, 5.5, 4.1);
+      key.target.position.set(0, 0.08, 0);
+      key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
+      scene.add(key);
+      scene.add(key.target);
+
+      const fill = new THREE.DirectionalLight(0x101218, 0.16);
+      fill.position.set(2.6, 0.3, -1.6);
+      scene.add(fill);
+
+      const runeGlow = new THREE.PointLight(0x2a7dff, 1.05, 5.8);
+      runeGlow.position.set(-0.04, 0.18, 1.12);
+      scene.add(runeGlow);
+
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(6.2, 64),
+        new THREE.MeshStandardMaterial({ color: 0x010102, roughness: 1, metalness: 0 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -1.42;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const dustGeo = new THREE.BufferGeometry();
+      const nDust = 160;
+      const dustPos = new Float32Array(nDust * 3);
+      for (let i = 0; i < nDust; i++) {
+        dustPos[i * 3]     = (Math.random() - 0.5) * 7.2;
+        dustPos[i * 3 + 1] = Math.random() * 4.1 - 0.8;
+        dustPos[i * 3 + 2] = (Math.random() - 0.5) * 5.4;
+      }
+      dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+      const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+        color: 0xb8c8dc, size: 0.009, transparent: true, opacity: 0.16, depthWrite: false
+      }));
+      scene.add(dust);
+
+      const outline = [
+        [-0.28, 0.97], [-0.20, 1.07], [-0.08, 1.12], [0.04, 1.07],
+        [0.16, 0.98], [0.24, 0.86], [0.27, 0.72], [0.22, 0.58],
+        [0.14, 0.50], [0.30, 0.46], [0.42, 0.34], [0.38, 0.18],
+        [0.41, 0.00], [0.43, -0.22], [0.45, -0.48], [0.44, -0.74],
+        [0.38, -0.98], [0.26, -1.13], [0.06, -1.19], [-0.16, -1.18],
+        [-0.34, -1.12], [-0.44, -0.98], [-0.47, -0.76], [-0.47, -0.50],
+        [-0.46, -0.22], [-0.45, 0.06], [-0.44, 0.34], [-0.42, 0.58],
+        [-0.40, 0.76], [-0.36, 0.88]
+      ];
+
+      const shape = new THREE.Shape();
+      outline.forEach(([x, y], i) => (i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y)));
+      shape.closePath();
+
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: 0.32,
+        bevelEnabled: true,
+        bevelThickness: 0.048,
+        bevelSize: 0.034,
+        bevelSegments: 5,
+        curveSegments: 14
+      });
+      geo.center();
+      geo.computeVertexNormals();
+
+      const blank = new THREE.DataTexture(new Uint8Array([8, 8, 10, 255]), 1, 1);
+      blank.needsUpdate = true;
+
+      const faceMap = blank;
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uMap:  { value: faceMap },
+          uHasMap: { value: 0 }
+        },
+        vertexShader: `
+          varying vec3 vN;
+          varying vec3 vP;
+          varying vec3 vV;
+          void main(){
+            vec4 w = modelMatrix * vec4(position, 1.0);
+            vP = position;
+            vN = normalize(normalMatrix * normal);
+            vV = normalize(cameraPosition - w.xyz);
+            gl_Position = projectionMatrix * viewMatrix * w;
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime;
+          uniform sampler2D uMap;
+          uniform float uHasMap;
+          varying vec3 vN;
+          varying vec3 vP;
+          varying vec3 vV;
+
+          float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float noise(vec2 p){
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            float a = hash(i);
+            float b = hash(i + vec2(1.0, 0.0));
+            float c = hash(i + vec2(0.0, 1.0));
+            float d = hash(i + vec2(1.0, 1.0));
+            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+          }
+          float fbm(vec2 p){
+            float v = 0.0;
+            float a = 0.5;
+            for (int i = 0; i < 5; i++) {
+              v += a * noise(p);
+              p = p * 2.07 + vec2(1.7, 9.2);
+              a *= 0.5;
+            }
+            return v;
+          }
+          float sdSeg(vec2 p, vec2 a, vec2 b){
+            vec2 pa = p - a;
+            vec2 ba = b - a;
+            float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+            return length(pa - ba * h);
+          }
+          float carve(vec2 p, vec2 a, vec2 b, float w){
+            float d = sdSeg(p, a, b);
+            float n = (noise(p * 38.0) - 0.5) * 0.0045;
+            return d - n - w;
+          }
+
+          void main(){
+            vec3 n = normalize(vN);
+            vec3 view = normalize(vV);
+            float front = smoothstep(0.16, 0.60, n.z);
+
+            vec2 uv = vec2((vP.x + 0.50) / 1.00, (vP.y + 1.22) / 2.42);
+            uv = clamp(uv, 0.0, 1.0);
+
+            float grit = fbm(uv * 26.0 + vP.z * 8.0);
+            float pits = smoothstep(0.64, 0.93, noise(uv * 58.0 + vP.z * 12.0));
+            vec3 stone = vec3(0.016 + grit * 0.020 - pits * 0.011);
+
+            vec3 L = normalize(vec3(-0.38, 0.84, 0.52));
+            float ndl = max(dot(n, L), 0.0);
+            stone *= 0.24 + pow(ndl, 1.28) * 0.92;
+            float spec = pow(max(dot(reflect(-L, n), view), 0.0), 26.0) * (1.0 - grit) * 0.035;
+            stone += spec * vec3(0.55, 0.58, 0.62);
+            float rim = pow(1.0 - max(dot(n, view), 0.0), 3.2);
+            stone += rim * vec3(0.028, 0.032, 0.038);
+
+            float d = 1.0;
+            d = min(d, carve(uv, vec2(0.36, 0.93), vec2(0.50, 0.88), 0.007));
+            d = min(d, carve(uv, vec2(0.50, 0.88), vec2(0.34, 0.82), 0.007));
+            d = min(d, carve(uv, vec2(0.34, 0.82), vec2(0.52, 0.74), 0.0075));
+            d = min(d, carve(uv, vec2(0.52, 0.74), vec2(0.40, 0.68), 0.0065));
+            d = min(d, carve(uv, vec2(0.54, 0.86), vec2(0.61, 0.78), 0.0065));
+            d = min(d, carve(uv, vec2(0.61, 0.78), vec2(0.49, 0.70), 0.0065));
+            d = min(d, carve(uv, vec2(0.49, 0.70), vec2(0.63, 0.62), 0.007));
+            d = min(d, carve(uv, vec2(0.68, 0.82), vec2(0.80, 0.72), 0.0065));
+            d = min(d, carve(uv, vec2(0.80, 0.72), vec2(0.66, 0.64), 0.0065));
+            d = min(d, carve(uv, vec2(0.26, 0.66), vec2(0.34, 0.48), 0.0075));
+            d = min(d, carve(uv, vec2(0.26, 0.66), vec2(0.44, 0.48), 0.0075));
+            d = min(d, carve(uv, vec2(0.48, 0.64), vec2(0.48, 0.46), 0.007));
+            d = min(d, carve(uv, vec2(0.40, 0.58), vec2(0.56, 0.58), 0.0065));
+            d = min(d, carve(uv, vec2(0.66, 0.58), vec2(0.62, 0.44), 0.0065));
+            d = min(d, carve(uv, vec2(0.24, 0.44), vec2(0.32, 0.28), 0.007));
+            d = min(d, carve(uv, vec2(0.24, 0.44), vec2(0.40, 0.28), 0.007));
+            d = min(d, carve(uv, vec2(0.46, 0.42), vec2(0.46, 0.26), 0.0065));
+            d = min(d, carve(uv, vec2(0.60, 0.40), vec2(0.72, 0.28), 0.0065));
+            d = min(d, carve(uv, vec2(0.72, 0.28), vec2(0.58, 0.18), 0.0065));
+            d = min(d, carve(uv, vec2(0.22, 0.24), vec2(0.34, 0.12), 0.0065));
+            d = min(d, carve(uv, vec2(0.34, 0.12), vec2(0.22, 0.02), 0.0065));
+            d = min(d, carve(uv, vec2(0.44, 0.14), vec2(0.44, 0.00), 0.0065));
+            d = min(d, carve(uv, vec2(0.62, 0.06), vec2(0.74, -0.04), 0.007));
+            d = min(d, carve(uv, vec2(0.74, -0.04), vec2(0.58, -0.12), 0.007));
+            d = min(d, carve(uv, vec2(0.58, -0.12), vec2(0.78, -0.22), 0.0075));
+
+            float groove = 1.0 - smoothstep(0.0, 0.011, d);
+            float core   = 1.0 - smoothstep(0.0, 0.0042, d);
+            float halo   = 1.0 - smoothstep(0.006, 0.028, d);
+            float pulse = 0.90 + 0.10 * sin(uTime * 1.75);
+
+            vec3 col = stone;
+            col *= 1.0 - groove * 0.72 * front;
+            col += vec3(0.08, 0.28, 0.70) * halo * 0.22 * pulse * front;
+            col += mix(vec3(0.28, 0.72, 1.0), vec3(0.62, 0.88, 1.0), core) * core * 0.95 * pulse * front;
+            col += vec3(0.18, 0.40, 0.70) * groove * (1.0 - core) * 0.35 * front;
+
+            vec3 photo = texture2D(uMap, uv).rgb;
+            float rune = smoothstep(0.12, 0.42, photo.b - max(photo.r, photo.g) * 0.85);
+            vec3 photoLit = photo * (0.92 + ndl * 0.18);
+            photoLit += vec3(0.10, 0.38, 0.95) * rune * 0.22 * pulse;
+            col = mix(col, photoLit, uHasMap * front);
+
+            col = mix(stone * 0.55, col, max(front, 0.35));
+            col = max(col, vec3(0.004));
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `
+      });
+
+      const stone = new THREE.Mesh(geo, mat);
+      stone.castShadow = true;
+      stone.receiveShadow = true;
+      stone.position.y = 0.08;
+      scene.add(stone);
+
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin("anonymous");
+      loader.load(
+        "./face.jpg",
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LINEAR_MIPMAP_LINEAR;
+          tex.magFilter = THREE.LINEAR;
+          mat.uniforms.uMap.value = tex;
+          mat.uniforms.uHasMap.value = 1;
+        },
+        undefined,
+        () => { /* keep procedural runes if photo is absent */ }
+      );
+
+      window.addEventListener("resize", () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      const clock = new THREE.Clock();
+      function tick() {
+        requestAnimationFrame(tick);
+        const t = clock.getElapsedTime();
+        mat.uniforms.uTime.value = t;
+        dust.rotation.y = t * 0.012;
+        key.intensity = 16.0 + Math.sin(t * 1.25) * 0.7;
+        runeGlow.intensity = 0.92 + Math.sin(t * 1.75) * 0.2;
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      tick();
+    } catch (e) {
+      showErr((e && e.message) ? e.message : String(e));
     }
-    tick();
   </script>
 </body>
 </html>
