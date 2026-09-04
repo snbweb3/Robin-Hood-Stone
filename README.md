@@ -2,7 +2,7 @@
 
 One stone. No variants.
 
-A single matte-black basalt runestone — Bitcoin Runestone silhouette — with pulsing blue runes. Interactive WebGL viewer.
+Pitch-black basalt runestone — Bitcoin Runestone silhouette — with carved blue rune grooves. Interactive WebGL viewer.
 
 **Repo:** https://github.com/snbweb3/Robin-Hood-Stone
 
@@ -11,9 +11,10 @@ Open `index.html` locally or enable GitHub Pages on `main` / root.
 ## Look
 
 - Tall irregular tablet, chipped crown, bite on the right flank
-- Matte black stone, no colored construction lines, no labels
-- Blue etched runes with a slow pulse
-- Dark ground, upper-left key light, faint dust
+- Near-black stone. Grain and pits only — no gray wash
+- Runes are cut channels: dark cavity, bright cyan core, thin lip glow
+- Slow pulse in the groove, not a fog over the face
+- Dark ground, tight upper-left key light, faint dust
 - Orbit + zoom only
 
 ## Controls
