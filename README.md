@@ -1,23 +1,25 @@
 # Robin Hood Stone
 
-Interactive WebGL 3D NFT. A black basalt runestone in the Bitcoin Runestone silhouette, etched with macaw / parrot-color marks.
+One stone. No variants.
+
+A single matte-black basalt runestone — Bitcoin Runestone silhouette — with pulsing blue runes. Interactive WebGL viewer.
 
 **Repo:** https://github.com/snbweb3/Robin-Hood-Stone
 
-Open `index.html` or enable GitHub Pages on `main` / root.
+Open `index.html` locally or enable GitHub Pages on `main` / root.
 
 ## Look
 
-- Tall flat tablet that tapers and chips at the crown — standing-stone shape, not a crystal
-- Body is near-black stone (roughness + faint sheen)
-- Carved glyph: stave, hooked beak, tail triad in scarlet / gold / leaf / cobalt
-- Same mark on the reverse
-- Seeded by token ID 1–1111
+- Tall irregular tablet, chipped crown, bite on the right flank
+- Matte black stone, no colored construction lines, no labels
+- Blue etched runes with a slow pulse
+- Dark ground, upper-left key light, faint dust
+- Orbit + zoom only
 
 ## Controls
 
-Drag orbit · scroll zoom · click stone to wake the etch · Random stone · Load stone
+Drag to orbit · scroll to zoom · auto-rotates when idle
 
 ## Stack
 
-Three.js r160 · OrbitControls · no build step
+Three.js r160 · OrbitControls · one self-contained HTML file
