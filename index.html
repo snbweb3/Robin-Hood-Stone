@@ -23,20 +23,18 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    const PHOTO = './stone.jpg';
-
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
-    scene.fog = new THREE.FogExp2(0x000000, 0.042);
+    scene.fog = new THREE.FogExp2(0x000000, 0.045);
 
     const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, 0.1, 80);
-    camera.position.set(0.08, 0.22, 5.8);
+    camera.position.set(0.06, 0.2, 5.7);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(innerWidth, innerHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
@@ -45,7 +43,7 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.38;
+    controls.autoRotateSpeed = 0.36;
     controls.enablePan = false;
     controls.minDistance = 3.4;
     controls.maxDistance = 9.5;
@@ -53,24 +51,17 @@
     controls.maxPolarAngle = 1.52;
     controls.target.set(0, 0.02, 0);
 
-    scene.add(new THREE.AmbientLight(0x070b12, 0.28));
-
+    scene.add(new THREE.AmbientLight(0x070b12, 0.3));
     const key = new THREE.SpotLight(0xdbe7ff, 34, 22, 0.38, 0.72, 1.1);
     key.position.set(-1.15, 5.1, 4.6);
     key.target.position.set(0, 0.15, 0);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
-    scene.add(key);
-    scene.add(key.target);
-
-    const fill = new THREE.DirectionalLight(0x152033, 0.35);
-    fill.position.set(3.2, 0.8, -1.6);
-    scene.add(fill);
-
+    scene.add(key); scene.add(key.target);
+    scene.add(new THREE.DirectionalLight(0x152033, 0.35).translateX(3.2));
     const rim = new THREE.PointLight(0x3d8cff, 2.4, 12);
     rim.position.set(1.6, 1.6, -2.4);
     scene.add(rim);
-
     const runeGlow = new THREE.PointLight(0x4aa6ff, 1.6, 6);
     runeGlow.position.set(-0.15, 0.25, 1.15);
     scene.add(runeGlow);
@@ -88,90 +79,104 @@
     const n = 180;
     const pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 7;
-      pos[i * 3 + 1] = Math.random() * 4.2 - 0.9;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 5.5;
+      pos[i*3] = (Math.random()-0.5)*7;
+      pos[i*3+1] = Math.random()*4.2-0.9;
+      pos[i*3+2] = (Math.random()-0.5)*5.5;
     }
     dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    scene.add(new THREE.Points(dustGeo, new THREE.PointsMaterial({
       color: 0xcfe4ff, size: 0.011, transparent: true, opacity: 0.28, depthWrite: false
-    }));
-    scene.add(dust);
+    })));
 
     const outline = [
-      [-0.30, 0.98], [-0.22, 1.06], [-0.10, 1.10], [0.02, 1.06],
-      [0.14, 0.98], [0.22, 0.88], [0.26, 0.74], [0.22, 0.60],
-      [0.16, 0.50], [0.28, 0.46], [0.38, 0.34], [0.36, 0.18],
-      [0.40, 0.02], [0.42, -0.20], [0.44, -0.46], [0.44, -0.72],
-      [0.40, -0.96], [0.28, -1.12], [0.08, -1.18], [-0.14, -1.18],
-      [-0.34, -1.14], [-0.44, -1.00], [-0.46, -0.78], [-0.46, -0.52],
-      [-0.45, -0.24], [-0.44, 0.04], [-0.44, 0.32], [-0.42, 0.56],
-      [-0.40, 0.74], [-0.36, 0.88]
+      [-0.30,0.98],[-0.22,1.06],[-0.10,1.10],[0.02,1.06],
+      [0.14,0.98],[0.22,0.88],[0.26,0.74],[0.22,0.60],
+      [0.16,0.50],[0.28,0.46],[0.38,0.34],[0.36,0.18],
+      [0.40,0.02],[0.42,-0.20],[0.44,-0.46],[0.44,-0.72],
+      [0.40,-0.96],[0.28,-1.12],[0.08,-1.18],[-0.14,-1.18],
+      [-0.34,-1.14],[-0.44,-1.00],[-0.46,-0.78],[-0.46,-0.52],
+      [-0.45,-0.24],[-0.44,0.04],[-0.44,0.32],[-0.42,0.56],
+      [-0.40,0.74],[-0.36,0.88]
     ];
-
     const shape = new THREE.Shape();
-    outline.forEach(([x, y], i) => (i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y)));
+    outline.forEach(([x,y],i) => i===0 ? shape.moveTo(x,y) : shape.lineTo(x,y));
     shape.closePath();
-
     const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.28,
-      bevelEnabled: true,
-      bevelThickness: 0.04,
-      bevelSize: 0.03,
-      bevelSegments: 4,
-      curveSegments: 10
+      depth: 0.28, bevelEnabled: true, bevelThickness: 0.04,
+      bevelSize: 0.03, bevelSegments: 4, curveSegments: 10
     });
-    geo.center();
-    geo.computeVertexNormals();
+    geo.center(); geo.computeVertexNormals();
 
-    const map = new THREE.TextureLoader().load(PHOTO, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-    });
-    map.anisotropy = 8;
-
+    const uniforms = { uTime: { value: 0 } };
     const mat = new THREE.ShaderMaterial({
-      uniforms: {
-        uMap: { value: map },
-        uTime: { value: 0 }
-      },
+      uniforms,
       vertexShader: `
-        varying vec3 vN;
-        varying vec3 vP;
-        varying vec3 vV;
+        varying vec3 vP; varying vec3 vN; varying vec3 vV;
         void main(){
-          vec4 w = modelMatrix * vec4(position, 1.0);
+          vec4 w = modelMatrix * vec4(position,1.0);
           vP = position;
           vN = normalize(normalMatrix * normal);
           vV = normalize(cameraPosition - w.xyz);
           gl_Position = projectionMatrix * viewMatrix * w;
-        }
-      `,
+        }`,
       fragmentShader: `
-        uniform sampler2D uMap;
+        varying vec3 vP; varying vec3 vN; varying vec3 vV;
         uniform float uTime;
-        varying vec3 vN;
-        varying vec3 vP;
-        varying vec3 vV;
-        float hash(vec3 p){
-          return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+        float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7))) * 43758.5453); }
+        float noise(vec3 p){
+          vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+          float n000=hash(i), n100=hash(i+vec3(1,0,0)), n010=hash(i+vec3(0,1,0)), n110=hash(i+vec3(1,1,0));
+          float n001=hash(i+vec3(0,0,1)), n101=hash(i+vec3(1,0,1)), n011=hash(i+vec3(0,1,1)), n111=hash(i+vec3(1,1,1));
+          return mix(mix(mix(n000,n100,f.x), mix(n010,n110,f.x), f.y),
+                     mix(mix(n001,n101,f.x), mix(n011,n111,f.x), f.y), f.z);
+        }
+        float line(vec2 p, vec2 a, vec2 b, float w){
+          vec2 pa = p-a, ba = b-a;
+          float h = clamp(dot(pa,ba)/dot(ba,ba), 0.0, 1.0);
+          return 1.0 - smoothstep(0.0, w, length(pa - ba*h));
         }
         void main(){
           vec3 n = normalize(vN);
           vec3 view = normalize(vV);
-          vec2 uv = vec2((vP.x + 0.50) / 1.00, 1.0 - ((vP.y + 1.22) / 2.44));
-          uv = clamp(uv, 0.0, 1.0);
-          vec3 photo = texture2D(uMap, uv).rgb;
-          float front = smoothstep(0.18, 0.62, n.z);
-          vec3 side = vec3(0.028, 0.030, 0.034) + hash(floor(vP * 42.0)) * 0.025;
-          vec3 col = mix(side, photo, front);
-          float rim = pow(1.0 - max(dot(n, view), 0.0), 2.6);
-          col += rim * vec3(0.08, 0.16, 0.30) * 0.55;
-          float pulse = 0.88 + 0.12 * sin(uTime * 2.05);
-          float blue = max(0.0, photo.b - photo.r * 0.62 - photo.g * 0.12);
-          col += vec3(0.04, 0.16, 0.55) * blue * pulse * front;
-          gl_FragColor = vec4(max(col, vec3(0.01)), 1.0);
-        }
-      `
+          vec3 col = vec3(0.025, 0.027, 0.030);
+          col += hash(floor(vP * 48.0)) * 0.03;
+          vec2 uv = vec2(vP.x, vP.y);
+          float rune = 0.0;
+          rune += line(uv, vec2(-0.18,0.78), vec2(-0.02,0.62), 0.018);
+          rune += line(uv, vec2(-0.02,0.62), vec2(-0.16,0.48), 0.016);
+          rune += line(uv, vec2(0.02,0.72), vec2(0.10,0.52), 0.014);
+          rune += line(uv, vec2(0.10,0.52), vec2(0.00,0.38), 0.014);
+          rune += line(uv, vec2(0.16,0.70), vec2(0.22,0.50), 0.013);
+          rune += line(uv, vec2(-0.22,0.28), vec2(-0.08,0.42), 0.016);
+          rune += line(uv, vec2(-0.08,0.42), vec2(0.04,0.26), 0.016);
+          rune += line(uv, vec2(-0.08,0.42), vec2(-0.08,0.12), 0.015);
+          rune += line(uv, vec2(0.02,0.22), vec2(0.16,0.34), 0.015);
+          rune += line(uv, vec2(0.16,0.34), vec2(0.16,0.08), 0.014);
+          rune += line(uv, vec2(0.02,0.08), vec2(0.16,0.08), 0.013);
+          rune += line(uv, vec2(-0.20,-0.02), vec2(-0.06,0.10), 0.015);
+          rune += line(uv, vec2(-0.06,0.10), vec2(0.06,-0.08), 0.015);
+          rune += line(uv, vec2(-0.18,-0.22), vec2(0.00,-0.08), 0.014);
+          rune += line(uv, vec2(0.00,-0.08), vec2(0.00,-0.32), 0.014);
+          rune += line(uv, vec2(0.08,-0.12), vec2(0.22,0.02), 0.014);
+          rune += line(uv, vec2(0.22,0.02), vec2(0.22,-0.28), 0.013);
+          rune += line(uv, vec2(-0.16,-0.42), vec2(0.04,-0.28), 0.015);
+          rune += line(uv, vec2(0.04,-0.28), vec2(0.04,-0.56), 0.014);
+          rune += line(uv, vec2(-0.10,-0.56), vec2(0.16,-0.56), 0.013);
+          rune += line(uv, vec2(0.10,-0.38), vec2(0.24,-0.22), 0.014);
+          rune += line(uv, vec2(0.24,-0.22), vec2(0.28,-0.52), 0.014);
+          rune += line(uv, vec2(-0.12,-0.70), vec2(0.08,-0.82), 0.016);
+          rune += line(uv, vec2(0.08,-0.82), vec2(0.20,-0.62), 0.015);
+          rune = clamp(rune, 0.0, 1.0);
+          rune *= 0.75 + 0.25 * noise(vP * 6.0);
+          float pulse = 0.72 + 0.28 * sin(uTime * 2.05);
+          col += vec3(0.18, 0.55, 1.0) * rune * pulse;
+          float front = smoothstep(0.15, 0.65, n.z);
+          col += rune * vec3(0.05, 0.16, 0.45) * front;
+          float rimL = pow(1.0 - max(dot(n, view), 0.0), 2.6);
+          col += rimL * vec3(0.08, 0.16, 0.30) * 0.55;
+          col += vec3(0.04) * max(dot(n, normalize(vec3(-0.3,0.8,0.4))), 0.0);
+          gl_FragColor = vec4(col, 1.0);
+        }`
     });
 
     const stone = new THREE.Mesh(geo, mat);
@@ -190,8 +195,7 @@
     function tick() {
       requestAnimationFrame(tick);
       const t = clock.getElapsedTime();
-      mat.uniforms.uTime.value = t;
-      dust.rotation.y = t * 0.018;
+      uniforms.uTime.value = t;
       key.intensity = 32 + Math.sin(t * 1.7) * 2.2;
       runeGlow.intensity = 1.35 + Math.sin(t * 2.05) * 0.45;
       controls.update();
